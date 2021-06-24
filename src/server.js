@@ -1,61 +1,62 @@
-const express = require('express')
-const ejs = require('ejs')
-const path = require('path')
-const puppeteer = require('puppeteer')
-const app = express()
+const express = require("express");
+const ejs = require("ejs");
+const path = require("path");
+const fs = require("fs");
+const puppeteer = require("puppeteer");
+const htmlPdf = require("html-pdf");
+const app = express();
 
 const passengers = [
-    {
-        name: "Joyce",
-        flightNumber: 7859,
-        time: "18h00",
-    },
-    {
-        name: "Brock",
-        flightNumber: 7859,
-        time: "18h00",
-    },
-    {
-        name: "Eve",
-        flightNumber: 7859,
-        time: "18h00",
-    },
+  {
+    name: "Joyce",
+    flightNumber: 7859,
+    time: "18h00",
+  },
+  {
+    name: "Brock",
+    flightNumber: 7859,
+    time: "18h00",
+  },
+  {
+    name: "Eve",
+    flightNumber: 7859,
+    time: "18h00",
+  },
 ];
 
-app.get('/pdf', async(request, response) => {
+app.get("/pdf-puppeteer", async (request, response) => {
+  const browser = await puppeteer.launch();
+  const page = await browser.newPage();
 
-    const browser = await puppeteer.launch()
-    const page = await browser.newPage()
+  await page.goto("http://localhost:3000/public/index.html", {
+    waitUntil: "networkidle0",
+  });
 
-    await page.goto('http://localhost:3000/', {
-        waitUntil: 'networkidle0'
-    })
+  const pdf = await page.pdf({
+    printBackground: true,
+    format: "Letter",
+    path: "next-puppeter.pdf",
+  });
 
-    const pdf = await page.pdf({
-        printBackground: true,
-        format: 'Letter'
-    })
+  await browser.close();
 
-    await browser.close()
+  response.contentType("application/pdf");
 
-    response.contentType("application/pdf")
+  return response.send(pdf);
+});
 
-    return response.send(pdf)
+app.get("/pdf-no-puppeteer", async (request, response) => {
+  const tmpl = fs.readFileSync(require.resolve("./public/index.html"), "utf8");
 
-})
+  htmlPdf
+    .create(tmpl, { format: "Letter" })
+    .toFile("./next-no-puppeteer.pdf", function (err, res) {
+      if (err) return console.log(err);
+      console.log(res);
+      return response.send("terminou");
+    });
+});
 
-app.get('/', (request, response) => {
+app.use("/public", express.static(__dirname + "/public"));
 
-    const filePath = path.join(__dirname, "print.ejs")
-    ejs.renderFile(filePath, { passengers }, (err, html) => {
-        if(err) {
-            return response.send('Erro na leitura do arquivo')
-        }
-    
-        // enviar para o navegador
-        return response.send(html)
-    })
-   
-})
-
-app.listen(3000)
+app.listen(3000);
